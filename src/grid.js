@@ -66,6 +66,27 @@ export class Grid {
     return this.topRow[c] * this.cell;
   }
 
+  // 帯 [rowTop..rowBot] の中で一番上にある固体の行を返す（なければ -1）。
+  // 車の「体の高さ」の範囲だけを見るのに使う（頭上のセル＝天井は無視できる）。
+  topSolidInBand(col, rowTop, rowBot) {
+    if (!this.inCols(col)) return Math.max(0, rowTop); // 画面外は壁
+    const start = Math.max(0, rowTop);
+    for (let r = start; r <= rowBot; r++) {
+      if (r >= this.groundRow) return r;                  // 地面
+      if (this.staticCells.has(this.idx(col, r))) return r;
+    }
+    return -1;
+  }
+
+  // fromRow から下方向で最初の固体行（=足場の上面の行）を返す。
+  floorBelow(col, fromRow) {
+    if (!this.inCols(col)) return this.groundRow;
+    for (let r = Math.max(0, fromRow); r < this.groundRow; r++) {
+      if (this.staticCells.has(this.idx(col, r))) return r;
+    }
+    return this.groundRow;
+  }
+
   // --- 確定セルを置く / 消す（内部用）---
   _setStatic(c, r, colorIndex) {
     if (!this.inCols(c) || r < 0 || r >= this.groundRow) return;
@@ -142,23 +163,24 @@ export class Grid {
   }
 
   // --- 削る（5.4 / グラインダー車）---------------------------------
-  // 前方の段差上部を、後輪の高さ(backTopY)まで GRIND_RATE 個だけ消す。
+  // 「車の届く範囲だけ」削る：頭上の行(headRow)から、乗り越えられる高さ
+  // (targetTopRow)までの段差上部だけを GRIND_RATE 個消す。これより上の
+  // セル（天井・高所）は触らないので不自然に上方が消えない。
   // 消した位置の配列（px中心）を返す → 砂ぼこり用。
-  grindFront(frontXpx, backTopYpx) {
+  grindFront(frontXpx, headRow, targetTopRow) {
     const dust = [];
-    const backRow = Math.floor(backTopYpx / this.cell);
     let removed = 0;
     const cols = [Math.floor(frontXpx / this.cell), Math.floor(frontXpx / this.cell) + 1];
     for (const c of cols) {
       if (!this.inCols(c)) continue;
-      let tr = this.topRow[c];
-      while (tr < backRow && tr < this.groundRow && removed < CFG.GRIND_RATE) {
-        if (this.staticCells.has(this.idx(c, tr))) {
-          this._clear(c, tr);
-          dust.push({ x: c * this.cell + this.cell / 2, y: tr * this.cell + this.cell / 2 });
+      let r = Math.max(0, headRow);
+      while (r < targetTopRow && r < this.groundRow && removed < CFG.GRIND_RATE) {
+        if (this.staticCells.has(this.idx(c, r))) {
+          this._clear(c, r);
+          dust.push({ x: c * this.cell + this.cell / 2, y: r * this.cell + this.cell / 2 });
           removed++;
         }
-        tr++;
+        r++;
       }
     }
     return dust;

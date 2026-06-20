@@ -38,14 +38,14 @@ export const COLORS = {
 
 // --- 調整パラメータ（CLAUDE.md 11 の目安）---
 export const CFG = {
-  CELL: 14,            // セルの大きさ(px)
+  CELL: 7,             // セルの大きさ(px) … ブロックを小さく（従来の約半分）
   GRAVITY: 8,          // 落下速度(px/frame)
-  BRUSH_RADIUS: 2,     // 描画ブラシ半径(セル数)
+  BRUSH_RADIUS: 1.5,   // 描画ブラシ半径(セル数) … 線を細く
   CAR_SPEED: 1.2,      // 車の速度(px/frame)
-  MAX_CLIMB_STEP: 2,   // 乗り越えられる段差 = CELL * この値
+  MAX_CLIMB_STEP: 4,   // 乗り越えられる段差 = CELL * この値（≒28px 維持）
   SPAWN_INTERVAL: 1500,// 車のスポーン間隔(ms)
   FACTORY_RATIO: 0.25, // 工場車両の出現割合
-  GRIND_RATE: 2,       // 1フレームで削るセル数
+  GRIND_RATE: 3,       // 1フレームで削るセル数（セルが小さいので少し多め）
   MAX_CARS: 24,        // 同時に走る車の上限
   RADIUS: 7,           // 角丸半径(px) ≒ 7（やわらかく）
 
