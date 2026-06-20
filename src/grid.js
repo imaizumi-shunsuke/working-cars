@@ -69,7 +69,7 @@ export class Grid {
   // 帯 [rowTop..rowBot] の中で一番上にある固体の行を返す（なければ -1）。
   // 車の「体の高さ」の範囲だけを見るのに使う（頭上のセル＝天井は無視できる）。
   topSolidInBand(col, rowTop, rowBot) {
-    if (!this.inCols(col)) return Math.max(0, rowTop); // 画面外は壁
+    if (!this.inCols(col)) return -1; // 画面外は障害なし（左からスポーンして入ってくる）
     const start = Math.max(0, rowTop);
     for (let r = start; r <= rowBot; r++) {
       if (r >= this.groundRow) return r;                  // 地面
