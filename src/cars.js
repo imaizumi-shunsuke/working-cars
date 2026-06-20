@@ -40,6 +40,7 @@ export class Car {
     this.state = 'run';      // 'run' | 'goal'
     this.stuck = 0;
     this.shake = 0;
+    this.workTimer = 0;  // 削り/掘削のひと噛み間隔タイマー
     this.wheelSpin = 0;
     this.goalT = 0;
     this.dead = false;
@@ -91,26 +92,36 @@ export function updateCar(car, grid, step, width) {
   const surface = Math.min(frontTop, backTop); // 高い方の山に乗る
   const stepUp = feetY - frontTop;             // 前方の山が足元より何px高いか
 
-  // --- 急な壁：詰まり / 特殊行動 ---
-  if (stepUp > maxStep) {
+  const isTruck = car.type !== TYPE.NORMAL;
+  // 工場車両は普通車より低いしきい値で「削る」。小さな山でも乗り越えず削る。
+  const climbLimit = isTruck ? cell * CFG.TRUCK_CLIMB : maxStep;
+
+  // --- 前方に越えられない山：削る/掘る/詰まる ---
+  if (stepUp > climbLimit) {
     if (car.type === TYPE.GRINDER) {
-      // グラインダー＝上を削る：山の天辺を少しずつ削って低くする
-      const dust = grid.grindTop(front, CFG.GRIND_RATE);
-      fx.dust.push(...dust);
-      fx.sparks.push(...dust);
-      if (dust.length) car.stuck = 0; else car.stuck += step;
-      car.shake = Math.sin(car.stuck * 0.8) * 1.0;
-      if (car.stuck > CFG.GIVE_UP_STUCK) { car.state = 'goal'; fx.poof = true; }
-      return fx;
+      // グラインダー＝上を削る。一定間隔で「ガリガリ」と少しずつ削る
+      car.stuck = 0;
+      car.workTimer += step;
+      if (car.workTimer >= CFG.WORK_INTERVAL) {
+        car.workTimer = 0;
+        const dust = grid.grindTop(front, CFG.GRIND_RATE);
+        fx.dust.push(...dust);
+        fx.sparks.push(...dust);
+      }
+      car.shake = Math.sin(car.wheelSpin * 6) * 0.6; // 作業中の小刻みな振動
+      return fx; // 山が低くなるまでその場で削る（粘り強い）
     }
     if (car.type === TYPE.TUNNEL) {
-      // ドリル＝下を掘る：山の根元を掘ると上が崩れ落ちて全体が沈む
-      const dust = grid.drillBottom(front, CFG.GRIND_RATE);
-      fx.dust.push(...dust);
-      if (dust.length) car.stuck = 0; else car.stuck += step;
-      car.x += speed * 0.25;                  // ぐいぐい押し込む感じ
-      car.shake = Math.sin(car.stuck * 0.7) * 0.8;
-      if (car.stuck > CFG.GIVE_UP_STUCK) { car.state = 'goal'; fx.poof = true; }
+      // ドリル＝下を掘る。根元を少しずつ掘ると上が崩れ落ちて山が沈む
+      car.stuck = 0;
+      car.workTimer += step;
+      if (car.workTimer >= CFG.WORK_INTERVAL) {
+        car.workTimer = 0;
+        const dust = grid.drillBottom(front, CFG.GRIND_RATE);
+        fx.dust.push(...dust);
+      }
+      car.x += speed * 0.06; // ほんの少しだけ押し込む
+      car.shake = Math.sin(car.wheelSpin * 5) * 0.6;
       return fx;
     }
     // 普通車：止まってぷるぷる。長く詰まったら諦めてポンッと消える

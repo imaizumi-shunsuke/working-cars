@@ -43,9 +43,12 @@ export const CFG = {
   BRUSH_RADIUS: 1.5,   // 描画ブラシ半径(セル数) … 線を細く
   CAR_SPEED: 1.2,      // 車の速度(px/frame)
   MAX_CLIMB_STEP: 4,   // 乗り越えられる段差 = CELL * この値（≒28px 維持）
+  TRUCK_CLIMB: 1.5,    // 工場車両が「削らずに乗り越える」段差 = CELL * この値。
+                       // これを超える山は乗り越えずにゆっくり削る（低めに設定）
+  WORK_INTERVAL: 7,    // 削り/掘削の1回(ひと噛み)の間隔(フレーム)。大きいほどゆっくり
   SPAWN_INTERVAL: 1500,// 車のスポーン間隔(ms)
   FACTORY_RATIO: 0.25, // 工場車両の出現割合
-  GRIND_RATE: 3,       // 1フレームで削るセル数（セルが小さいので少し多め）
+  GRIND_RATE: 1,       // 1回(ひと噛み)で削るセル数（ゆっくり見せる）
   MAX_CARS: 24,        // 同時に走る車の上限
   GIVE_UP_STUCK: 180,  // これだけ詰まり続けたら諦めてポンッと消える(約3秒)
   RADIUS: 7,           // 角丸半径(px) ≒ 7（やわらかく）
