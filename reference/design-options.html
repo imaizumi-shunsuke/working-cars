@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>あそびのデザイン案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#4a4458;
+    --soft:#7d748f;
+    --line:#e7e1ef;
+    --bg:#f3eefa;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Zen Maru Gothic','Fredoka',system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(120% 60% at 50% -10%, #fff 0%, var(--bg) 60%);
+    -webkit-font-smoothing:antialiased;
+    padding:28px 18px 60px;
+  }
+  header{max-width:1000px;margin:0 auto 26px;text-align:center;}
+  .kicker{
+    display:inline-block;
+    font-family:'Fredoka',sans-serif;
+    letter-spacing:.5px;
+    font-size:13px;
+    color:#a78bd0;
+    background:#fff;
+    border:2px solid #ece3f7;
+    padding:5px 14px;border-radius:999px;
+    margin-bottom:14px;
+  }
+  h1{
+    font-family:'Zen Maru Gothic',sans-serif;
+    font-weight:700;
+    font-size:clamp(26px,5vw,40px);
+    margin:0 0 8px;
+    color:#3f3556;
+  }
+  .lead{margin:0 auto;max-width:520px;font-size:15px;line-height:1.7;color:var(--soft);}
+  .pick-note{
+    margin-top:14px;font-size:13px;color:#b6a8cb;
+  }
+  .grid{
+    max-width:1000px;margin:0 auto;
+    display:grid;gap:22px;
+    grid-template-columns:1fr;
+  }
+  @media(min-width:760px){ .grid{grid-template-columns:1fr 1fr;} }
+
+  .card{
+    background:#fff;
+    border-radius:26px;
+    border:1px solid var(--line);
+    box-shadow:0 18px 40px -28px rgba(80,60,120,.45);
+    overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+  .scene-wrap{position:relative;line-height:0;}
+  .scene-wrap svg{width:100%;height:auto;display:block;}
+  .badge{
+    position:absolute;top:14px;left:14px;
+    width:34px;height:34px;border-radius:12px;
+    background:rgba(255,255,255,.92);
+    color:#5b4a78;font-family:'Fredoka',sans-serif;font-weight:700;
+    display:grid;place-items:center;font-size:17px;
+    box-shadow:0 6px 14px -6px rgba(60,40,90,.4);
+    z-index:2;
+  }
+  .meta{padding:18px 20px 20px;}
+  .meta h2{
+    font-family:'Zen Maru Gothic',sans-serif;font-weight:700;
+    margin:0 0 6px;font-size:19px;color:#3f3556;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .meta h2 small{font-size:12px;color:#b09ccf;font-weight:500;}
+  .meta p{margin:0 0 14px;font-size:13.5px;line-height:1.7;color:var(--soft);}
+  .swatches{display:flex;gap:7px;align-items:center;}
+  .swatch{width:22px;height:22px;border-radius:8px;border:1px solid rgba(0,0,0,.05);}
+
+  footer{
+    max-width:1000px;margin:34px auto 0;text-align:center;
+    font-size:13px;color:#b6a8cb;line-height:1.7;
+  }
+  footer b{color:#8a78ad;font-weight:700;}
+</style>
+</head>
+<body>
+  <header>
+    <span class="kicker">DESIGN OPTIONS</span>
+    <h1>あそびのデザイン案</h1>
+    <p class="lead">同じゲームのワンシーンを、4つの雰囲気で描いてみました。<br>車・地面・障害物の山・ドリル車・右上の「ぜんぶけす」ボタンが入っています。</p>
+    <p class="pick-note">気に入ったものを記号で教えてください（例：「C がいい」）</p>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    これは雰囲気を確かめるための<b>イメージ図</b>です。決まったらこの方向で実際のゲームを作っていきます。<br>
+    複数の「いいとこ取り」もできます（例：「Bの色 ＋ Cのつやっと感」など）。
+  </footer>
+
+<script>
+const STYLES = [
+  {
+    id:'A', name:'クレヨン絵本', tag:'あたたかい / 手描き',
+    desc:'ゆらゆらした手描きの線と、紙のような質感。寝る前の絵本みたいに、ほっとする世界観です。',
+    page:'#fbf3e2', sky:'#cfeafa', hill1:'#c3e6a8', hill2:'#a9d98c',
+    ground:'#e9c98f', grass:'#9ed16f',
+    cars:['#f4a3a3','#97c4ef','#ffd887'], factory:'#f4b95e',
+    obstacles:['#c7a2e0','#f3b4cf','#bcd98e','#9fd6e6'],
+    wheel:'#5a4029', hub:'#f5e7cf', ink:'#6b4f34',
+    outline:'#6b4f34', outlineW:3.2, radius:7,
+    rough:true, gloss:false,
+    btnBg:'#fffaf0', btnBorder:'#6b4f34', btnText:'#6b4f34', btnShadow:false,
+  },
+  {
+    id:'B', name:'フラットポップ', tag:'くっきり / 元気',
+    desc:'すっきりした形と、あざやかな色。いまっぽくて見やすい、知育アプリのような明るさです。',
+    page:'#eef4ff', sky:'#bfe2ff', hill1:'#9be0b0', hill2:'#6fd49a',
+    ground:'#ffd36b', grass:'#5fd07e',
+    cars:['#ff6b8a','#4ea8ff','#ffc43d'], factory:'#ff8a3d',
+    obstacles:['#9b6bff','#ff7eb6','#5fd07e','#3dc9ff'],
+    wheel:'#2f2f44', hub:'#ffffff', ink:'#2f2f44',
+    outline:'none', outlineW:0, radius:13,
+    rough:false, gloss:false,
+    btnBg:'#ffffff', btnBorder:'none', btnText:'#ff5f8a', btnShadow:true,
+  },
+  {
+    id:'C', name:'ぷにぷにグミ', tag:'つやつや / おいしそう',
+    desc:'やわらかいグラデと影で、ゼリーやあめみたいな手ざわり感。さわりたくなる立体っぽさです。',
+    page:'#f6effa', sky:'#d6ecff', hill1:'#bfe9c4', hill2:'#97dba6',
+    ground:'#ffd98e', grass:'#86dd9c',
+    cars:['#ff8fb0','#7fbdff','#ffce5e'], factory:'#ffa05c',
+    obstacles:['#b48dff','#ff9ec8','#8fe0a0','#7fd4ff'],
+    wheel:'#5b4a6e', hub:'#fef0ff', ink:'#6a4a6a',
+    outline:'none', outlineW:0, radius:12,
+    rough:false, gloss:true,
+    btnBg:'#ffffff', btnBorder:'none', btnText:'#c06bd6', btnShadow:true,
+  },
+  {
+    id:'D', name:'やさしいパステル', tag:'しずか / 北欧かわいい',
+    desc:'彩度をおさえた静かな色と、ゆったりした余白。やわらかく落ち着いた、上品なかわいさです。',
+    page:'#f7f5f2', sky:'#e3eef0', hill1:'#d3e2cd', hill2:'#bcd4be',
+    ground:'#e8dcc4', grass:'#c4d9b4',
+    cars:['#e7a9ad','#a9c2d6','#e8cfa0'], factory:'#e3b896',
+    obstacles:['#c3b0d6','#e6c1cf','#bcd0b0','#aec8d2'],
+    wheel:'#9a8fa0', hub:'#fbf8f4', ink:'#8a7d90',
+    outline:'#cfc4d2', outlineW:2, radius:11,
+    rough:false, gloss:false, sparse:true,
+    btnBg:'#ffffff', btnBorder:'#e3dce6', btnText:'#9a8aa6', btnShadow:false,
+  },
+];
+
+const W=380, H=240;
+
+function defs(s){
+  let d='<defs>';
+  if(s.rough){
+    d+=`<filter id="rough-${s.id}" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>`;
+  }
+  if(s.gloss){
+    d+=`<filter id="soft-${s.id}" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#5a3d6e" flood-opacity="0.22"/>
+    </filter>`;
+    // gradients per car/factory/obstacle color
+    const all=[...s.cars,s.factory,...s.obstacles];
+    all.forEach((c,i)=>{
+      d+=`<linearGradient id="g-${s.id}-${i}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${lighten(c,18)}"/>
+        <stop offset="1" stop-color="${darken(c,10)}"/>
+      </linearGradient>`;
+    });
+    d+=`<linearGradient id="sky-${s.id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${lighten(s.sky,8)}"/><stop offset="1" stop-color="${s.sky}"/>
+    </linearGradient>`;
+  }
+  d+='</defs>';
+  return d;
+}
+function fillFor(s,colorIndexBase,color,i){
+  if(s.gloss) return `url(#g-${s.id}-${colorIndexBase})`;
+  return color;
+}
+function strokeAttrs(s){
+  if(s.outline==='none'||!s.outlineW) return '';
+  return ` stroke="${s.outline}" stroke-width="${s.outlineW}" stroke-linejoin="round"`;
+}
+
+function lighten(hex,amt){return shift(hex,amt);}
+function darken(hex,amt){return shift(hex,-amt);}
+function shift(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  const f=v=>Math.max(0,Math.min(255,Math.round(v+ (amt/100)*255)));
+  r=f(r);g=f(g);b=f(b);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function rr(x,y,w,h,r,fill,s,extra=''){
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="${fill}"${strokeAttrs(s)} ${extra}/>`;
+}
+function ci(cx,cy,r,fill,s='',stroke=false){
+  const st=stroke?strokeAttrs(s):'';
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}"${st}/>`;
+}
+
+function face(s,cx,cy){
+  // two eyes + smile, drawn in ink
+  return `
+    <circle cx="${cx-5}" cy="${cy}" r="3.1" fill="#fff"/>
+    <circle cx="${cx+5}" cy="${cy}" r="3.1" fill="#fff"/>
+    <circle cx="${cx-4.3}" cy="${cy+0.6}" r="1.5" fill="${s.ink}"/>
+    <circle cx="${cx+5.7}" cy="${cy+0.6}" r="1.5" fill="${s.ink}"/>
+    <path d="M ${cx-4} ${cy+6} Q ${cx+1} ${cy+10} ${cx+6} ${cy+6}" fill="none" stroke="${s.ink}" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="${cx-9}" cy="${cy+4}" r="2.4" fill="#ff9bb0" opacity="${s.sparse?0.5:0.7}"/>
+    <circle cx="${cx+10}" cy="${cy+4}" r="2.4" fill="#ff9bb0" opacity="${s.sparse?0.5:0.7}"/>
+  `;
+}
+
+function car(s,x,y,scale,color,ci_idx){
+  const fill=fillFor(s,ci_idx,color);
+  const glossHi = s.gloss ? `<ellipse cx="26" cy="20" rx="20" ry="6" fill="#fff" opacity="0.28"/>`:'';
+  const wheelGloss = s.gloss?`<circle cx="0" cy="-1.5" r="3" fill="#fff" opacity="0.25"/>`:'';
+  const filt = s.gloss?` filter="url(#soft-${s.id})"`:(s.rough?'':'');
+  const body=`
+    <g class="bob"${filt}>
+      <!-- wheels -->
+      <g transform="translate(16,40)"><circle r="9" fill="${s.wheel}"${strokeAttrs(s)}/><circle r="4" fill="${s.hub}"/>${wheelGloss}</g>
+      <g transform="translate(48,40)"><circle r="9" fill="${s.wheel}"${strokeAttrs(s)}/><circle r="4" fill="${s.hub}"/>${wheelGloss}</g>
+      <!-- cabin -->
+      ${rr(18,4,30,18,s.radius,fill,s)}
+      ${rr(22,7,22,11,Math.max(4,s.radius-3),'#eaf7ff',s)}
+      <!-- body -->
+      ${rr(2,16,60,22,s.radius,fill,s)}
+      ${glossHi}
+      ${face(s,40,27)}
+    </g>`;
+  return `<g transform="translate(${x},${y}) scale(${scale})">${body}</g>`;
+}
+
+function drillTruck(s,x,y,scale){
+  const fill=fillFor(s,3,s.factory); // factory uses index 3 (after 3 cars) in gloss grad
+  const glossHi = s.gloss ? `<ellipse cx="30" cy="20" rx="20" ry="6" fill="#fff" opacity="0.28"/>`:'';
+  const filt = s.gloss?` filter="url(#soft-${s.id})"`:'';
+  // drill cone pointing right
+  const drill=`
+    <g transform="translate(62,30)">
+      <polygon points="0,-9 18,0 0,9" fill="${s.gloss?darken(s.factory,4):'#d8d8e0'}"${strokeAttrs(s)}/>
+      <line x1="3" y1="-5" x2="13" y2="-1.5" stroke="#fff" stroke-width="1.4" opacity=".7"/>
+      <line x1="3" y1="0" x2="15" y2="0" stroke="#fff" stroke-width="1.4" opacity=".7"/>
+      <line x1="3" y1="5" x2="13" y2="1.5" stroke="#fff" stroke-width="1.4" opacity=".7"/>
+    </g>`;
+  const body=`
+    <g class="bob"${filt}>
+      <g transform="translate(16,40)"><circle r="9" fill="${s.wheel}"${strokeAttrs(s)}/><circle r="4" fill="${s.hub}"/></g>
+      <g transform="translate(46,40)"><circle r="9" fill="${s.wheel}"${strokeAttrs(s)}/><circle r="4" fill="${s.hub}"/></g>
+      ${rr(8,2,18,14,s.radius,fill,s)}
+      <!-- hazard light -->
+      <circle cx="17" cy="0" r="3" fill="#ffd24a"${strokeAttrs(s)}/>
+      ${rr(2,16,58,22,s.radius,fill,s)}
+      <!-- stripe -->
+      ${rr(2,30,58,5,2,'#ffffff',{outline:'none',outlineW:0},'opacity="0.5"')}
+      ${glossHi}
+      ${drill}
+      ${face(s,34,26)}
+    </g>`;
+  return `<g transform="translate(${x},${y}) scale(${scale})">${body}</g>`;
+}
+
+function block(s,x,y,size,color,i){
+  const fill=fillFor(s, 4 + (i%4), color); // obstacles grads start after cars(3)+factory(1)=4
+  const hi = s.gloss?`<ellipse cx="${x+size*0.42}" cy="${y+size*0.32}" rx="${size*0.3}" ry="${size*0.16}" fill="#fff" opacity="0.3"/>`:'';
+  return rr(x,y,size,size,Math.max(4,s.radius-2),fill,s)+hi;
+}
+
+function obstaclePile(s,baseX,baseY){
+  // a little pyramid of candy blocks on the ground, with a car climbing the right slope
+  const sz=17, g=1;
+  let out='';
+  const rows=[3,2,1];
+  let oi=0;
+  rows.forEach((count,row)=>{
+    const rowY=baseY-(row+1)*(sz+g);
+    const offset=row*(sz/2);
+    for(let c=0;c<count;c++){
+      const x=baseX+offset+c*(sz+g);
+      out+=block(s,x,rowY,sz, s.obstacles[oi%s.obstacles.length], oi);
+      oi++;
+    }
+  });
+  return out;
+}
+
+function cloud(s,x,y,scale){
+  const f='#ffffff';
+  const op=s.sparse?0.85:1;
+  return `<g class="drift" transform="translate(${x},${y}) scale(${scale})" opacity="${op}">
+    <ellipse cx="0" cy="0" rx="16" ry="11" fill="${f}"/>
+    <ellipse cx="15" cy="3" rx="13" ry="9" fill="${f}"/>
+    <ellipse cx="-14" cy="4" rx="12" ry="8" fill="${f}"/>
+    <rect x="-22" y="2" width="44" height="9" rx="5" fill="${f}"/>
+  </g>`;
+}
+
+function button(s){
+  const bw=92, bh=30, bx=W-bw-12, by=12;
+  const stroke = (s.btnBorder && s.btnBorder!=='none') ? ` stroke="${s.btnBorder}" stroke-width="2"`:'';
+  const shadow = s.btnShadow ? ` filter="url(#btnshadow-${s.id})"`:'';
+  return `
+    <defs><filter id="btnshadow-${s.id}" x="-40%" y="-40%" width="180%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#7a5a9a" flood-opacity="0.28"/>
+    </filter></defs>
+    <g${shadow}>
+      <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="15" fill="${s.btnBg}"${stroke}/>
+      <!-- broom/sparkle icon -->
+      <g transform="translate(${bx+15},${by+15})" stroke="${s.btnText}" stroke-width="2" stroke-linecap="round" fill="none">
+        <line x1="-4" y1="-5" x2="2" y2="1"/>
+        <path d="M 1 0 L 6 5 L 2 7 L -1 3 Z" fill="${s.btnText}" stroke="none"/>
+        <line x1="5" y1="-6" x2="5" y2="-3"/>
+        <line x1="3.5" y1="-4.5" x2="6.5" y2="-4.5"/>
+      </g>
+      <text x="${bx+33}" y="${by+20}" font-family="'Zen Maru Gothic',sans-serif" font-weight="700" font-size="13" fill="${s.btnText}">ぜんぶけす</text>
+    </g>`;
+}
+
+function scene(s){
+  const groundY=186;
+  // illustration group (filtered if rough)
+  const filt = s.rough ? ` filter="url(#rough-${s.id})"`:'';
+  let cars='';
+  if(s.sparse){
+    cars += car(s, 40, 150, 0.85, s.cars[1], 1);
+    cars += drillTruck(s, 250, 142, 0.95);
+    cars += car(s, 165, 145, 0.62, s.cars[0], 0); // small one climbing
+  }else{
+    cars += car(s, 22, 150, 0.78, s.cars[0], 0);
+    cars += car(s, 60, 158, 0.62, s.cars[2], 2); // climbing block
+    cars += drillTruck(s, 250, 142, 1.0);
+    cars += car(s, 318, 150, 0.74, s.cars[1], 1);
+  }
+
+  const skyFill = s.gloss?`url(#sky-${s.id})`:s.sky;
+  const clouds = s.sparse
+    ? cloud(s,110,40,1) + cloud(s,300,30,0.8)
+    : cloud(s,80,38,1) + cloud(s,210,28,0.85) + cloud(s,320,50,0.7);
+
+  return `
+  <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${s.name}のイメージ">
+    ${defs(s)}
+    <rect x="0" y="0" width="${W}" height="${H}" fill="${skyFill}"/>
+    ${clouds}
+    <!-- hills -->
+    <path d="M -20 ${groundY} Q 90 120 200 ${groundY} T 420 ${groundY} L 420 ${H} L -20 ${H} Z" fill="${s.hill1}"/>
+    <path d="M -20 ${groundY+6} Q 150 140 320 ${groundY+6} T 460 ${groundY+6} L 460 ${H} L -20 ${H} Z" fill="${s.hill2}"/>
+    <g${filt}>
+      <!-- ground -->
+      <rect x="-2" y="${groundY+8}" width="${W+4}" height="${H-groundY}" fill="${s.ground}"/>
+      <path d="M -2 ${groundY+8} q 14 -8 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 t 28 0 L ${W+2} ${groundY+18} L -2 ${groundY+18} Z" fill="${s.grass}"/>
+      <!-- obstacles -->
+      ${obstaclePile(s, 86, groundY+9)}
+      ${obstaclePile(s, 198, groundY+9)}
+      <!-- vehicles -->
+      ${cars}
+    </g>
+    ${button(s)}
+  </svg>`;
+}
+
+const grid=document.getElementById('grid');
+STYLES.forEach(s=>{
+  const card=document.createElement('div');
+  card.className='card';
+  const sw=[s.cars[0],s.obstacles[0],s.factory,s.hill2,s.sky]
+    .map(c=>`<span class="swatch" style="background:${c}"></span>`).join('');
+  card.innerHTML=`
+    <div class="scene-wrap">
+      <div class="badge">${s.id}</div>
+      ${scene(s)}
+    </div>
+    <div class="meta">
+      <h2>${s.name} <small>${s.tag}</small></h2>
+      <p>${s.desc}</p>
+      <div class="swatches">${sw}</div>
+    </div>`;
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>
