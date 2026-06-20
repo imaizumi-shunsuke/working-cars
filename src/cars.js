@@ -11,7 +11,7 @@
 
 import { CFG, COLORS } from './config.js';
 
-export const TYPE = { NORMAL: 'normal', GRINDER: 'grinder', TUNNEL: 'tunnel' };
+export const TYPE = { NORMAL: 'normal', GRINDER: 'grinder', TUNNEL: 'tunnel', SHOVEL: 'shovel' };
 
 // ふつうの車のバリエーション（色＋飾り）。見た目だけ変える。
 export const VEHICLES = [
@@ -55,7 +55,8 @@ export class Car {
 export function spawnCar() {
   const h = 34;
   if (Math.random() < CFG.FACTORY_RATIO) {
-    const type = Math.random() < 0.5 ? TYPE.GRINDER : TYPE.TUNNEL;
+    const r = Math.random();
+    const type = r < 1 / 3 ? TYPE.GRINDER : r < 2 / 3 ? TYPE.TUNNEL : TYPE.SHOVEL;
     return new Car(type, null, -64, 62, h);
   }
   // ふつうの車：バリエーションを順番に＋少しランダムに
@@ -92,9 +93,12 @@ export function updateCar(car, grid, step, width) {
   const surface = Math.min(frontTop, backTop); // 高い方の山に乗る
   const stepUp = feetY - frontTop;             // 前方の山が足元より何px高いか
 
-  const isTruck = car.type !== TYPE.NORMAL;
-  // 工場車両は普通車より低いしきい値で「削る」。小さな山でも乗り越えず削る。
-  const climbLimit = isTruck ? cell * CFG.TRUCK_CLIMB : maxStep;
+  // しきい値：普通車は段差を乗り越える。工場車両は低い山でも削る。
+  // ショベルカーは「1段でも段差があれば」止まって削る（最も低いしきい値）。
+  let climbLimit;
+  if (car.type === TYPE.NORMAL) climbLimit = maxStep;
+  else if (car.type === TYPE.SHOVEL) climbLimit = cell * CFG.SHOVEL_CLIMB;
+  else climbLimit = cell * CFG.TRUCK_CLIMB;
 
   // --- 前方に越えられない山：削る/掘る/詰まる ---
   if (stepUp > climbLimit) {
@@ -122,6 +126,18 @@ export function updateCar(car, grid, step, width) {
       }
       car.x += speed * 0.06; // ほんの少しだけ押し込む
       car.shake = Math.sin(car.wheelSpin * 5) * 0.6;
+      return fx;
+    }
+    if (car.type === TYPE.SHOVEL) {
+      // ショベル＝バケットで前の山をすくう。1段の段差でも止まって削る
+      car.stuck = 0;
+      car.workTimer += step;
+      if (car.workTimer >= CFG.WORK_INTERVAL) {
+        car.workTimer = 0;
+        const dust = grid.grindTop(front, CFG.GRIND_RATE);
+        fx.dust.push(...dust);
+      }
+      car.shake = Math.sin(car.wheelSpin * 4) * 0.4;
       return fx;
     }
     // 普通車：止まってぷるぷる。長く詰まったら諦めてポンッと消える

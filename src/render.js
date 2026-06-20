@@ -397,6 +397,9 @@ export class Renderer {
     // ハザードランプ
     crayonCircle(ctx, -w * 0.05, -h * 0.78, 3.4, '#ffd24a', { strokeW: 2 });
 
+    // ショベルカーはバケットアーム（車体座標で描く）
+    if (car.type === TYPE.SHOVEL) { this._shovelArm(ctx, car); return; }
+
     // 前方の工具
     ctx.save();
     ctx.translate(w * 0.5, h * 0.06);
@@ -434,6 +437,53 @@ export class Renderer {
         ctx.stroke();
       }
     }
+    ctx.restore();
+  }
+
+  _shovelArm(ctx, car) {
+    const w = car.w, h = car.h;
+    // すくう動き：肘とバケットが上下する
+    const dig = (Math.sin(car.wheelSpin * 4) * 0.5 + 0.5); // 0..1
+    const sx = w * 0.06, sy = -h * 0.55;        // 肩（キャビン上）
+    const ex = w * 0.42, ey = -h * 0.18;        // 肘
+    const tx = w * 0.6, ty = h * 0.12 + dig * h * 0.34; // バケット先端（下げる）
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // アーム（太い茶の腕）
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
+    ctx.stroke();
+    ctx.strokeStyle = COLORS.factory;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
+    ctx.stroke();
+    // 関節ピン
+    crayonCircle(ctx, ex, ey, 2.2, '#ffd24a', { strokeW: 1.4 });
+
+    // バケット（すくうお椀＋歯）
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.fillStyle = '#d8c08a';
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-2, -6);
+    ctx.lineTo(8, -4);
+    ctx.quadraticCurveTo(10, 4, 4, 8);
+    ctx.lineTo(-3, 6);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // 歯
+    ctx.lineWidth = 1.4;
+    for (const bx of [-1, 2, 5]) {
+      ctx.beginPath(); ctx.moveTo(bx, 7); ctx.lineTo(bx, 10); ctx.stroke();
+    }
+    ctx.restore();
     ctx.restore();
   }
 

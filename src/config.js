@@ -45,6 +45,7 @@ export const CFG = {
   MAX_CLIMB_STEP: 4,   // 乗り越えられる段差 = CELL * この値（≒28px 維持）
   TRUCK_CLIMB: 1.5,    // 工場車両が「削らずに乗り越える」段差 = CELL * この値。
                        // これを超える山は乗り越えずにゆっくり削る（低めに設定）
+  SHOVEL_CLIMB: 0.5,   // ショベルカーのしきい値。1段(1セル)の段差でも止まって削る
   WORK_INTERVAL: 7,    // 削り/掘削の1回(ひと噛み)の間隔(フレーム)。大きいほどゆっくり
   SPAWN_INTERVAL: 1500,// 車のスポーン間隔(ms)
   FACTORY_RATIO: 0.25, // 工場車両の出現割合
