@@ -67,7 +67,7 @@ export function spawnCar() {
 // --- 1フレーム更新 ----------------------------------------------------
 // 戻り値: { dust:[], sparks:[], goal:false }
 export function updateCar(car, grid, step, width) {
-  const fx = { dust: [], sparks: [], goal: false };
+  const fx = { dust: [], sparks: [], goal: false, poof: false };
   car.wheelSpin += 0.25 * step;
 
   if (car.state === 'goal') {
@@ -88,8 +88,9 @@ export function updateCar(car, grid, step, width) {
   const headRow = Math.floor((car.y - car.h * 0.5) / cell);
   const frontCol = Math.floor(front / cell);
 
-  // --- トンネル車：掘削中 ---
+  // --- トンネル車：掘削中（前進しているので詰まりはリセット）---
   if (car.digging) {
+    car.stuck = 0;
     const rowTop = Math.floor((car.y - car.h * 0.5 - cell) / cell); // 天井に少し余裕
     const rowBot = Math.floor((car.y + car.h * 0.5) / cell);
     fx.dust.push(...grid.digBand(car.x + car.w * 0.5, rowTop, rowBot));
@@ -116,7 +117,6 @@ export function updateCar(car, grid, step, width) {
   }
 
   if (blocked) {
-    car.stuck += step;
     if (car.type === TYPE.GRINDER) {
       // 「届く範囲だけ」削る：乗り越えられる高さまで段差上部を削る。
       // targetTopRow より上(=頭に近い側)のセルだけ消すので、削った後に
@@ -125,14 +125,20 @@ export function updateCar(car, grid, step, width) {
       const dust = grid.grindFront(front, headRow, targetTopRow);
       fx.dust.push(...dust);
       fx.sparks.push(...dust);
+      // 削れていれば前進中とみなし詰まりリセット。削れない壁なら諦める
+      if (dust.length) car.stuck = 0; else car.stuck += step;
       car.shake = Math.sin(car.stuck * 0.8) * 1.0;
+      if (car.stuck > CFG.GIVE_UP_STUCK) { car.state = 'goal'; fx.poof = true; }
       return fx;
     }
     if (car.type === TYPE.TUNNEL) {
       car.digging = true;
       return fx;
     }
-    car.shake = Math.sin(car.stuck * 0.9) * 1.6; // 普通車：ぷるぷる
+    // 普通車：止まってぷるぷる。長く詰まったら諦めてポンッと消える
+    car.stuck += step;
+    car.shake = Math.sin(car.stuck * 0.9) * 1.6;
+    if (car.stuck > CFG.GIVE_UP_STUCK) { car.state = 'goal'; fx.poof = true; }
     return fx;
   }
 

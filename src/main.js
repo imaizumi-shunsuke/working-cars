@@ -87,6 +87,18 @@ function spawnSparks(list) {
     });
   }
 }
+function spawnPoof(car) {
+  // 諦めて消えるときの、やわらかいケムリ（音なし）
+  for (let i = 0; i < 10; i++) {
+    const a = Math.random() * Math.PI * 2;
+    game.particles.push({
+      kind: 'dust', x: car.x, y: car.y - 4,
+      vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 1.2 - 0.6,
+      r: 2 + Math.random() * 3, life: 1, maxLife: 1, decay: 0.05,
+      color: '#efe7d6',
+    });
+  }
+}
 function spawnGoal(car) {
   audio.goal();
   game.particles.push({ kind: 'ring', x: car.x, y: car.y, r: 40, life: 1, maxLife: 1, decay: 0.05, color: COLORS.cheek });
@@ -131,6 +143,7 @@ function loop(now) {
     if (fx.dust.length) spawnDust(fx.dust);
     if (fx.sparks.length) spawnSparks(fx.sparks);
     if (fx.goal) spawnGoal(car);
+    if (fx.poof) spawnPoof(car);
   }
   game.cars = game.cars.filter((c) => !c.dead);
   updateParticles(step);
