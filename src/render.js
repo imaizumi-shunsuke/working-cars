@@ -210,10 +210,13 @@ export class Renderer {
   }
 
   _block(ctx, x, y, size, color) {
-    crayonRect(ctx, x + 0.5, y + 0.5, size - 1, size - 1, Math.max(4, CFG.RADIUS - 3), color, { strokeW: 2.2, j: 0.6 });
+    // セルが小さいので輪郭・角丸・ゆらぎをサイズに合わせて控えめに
+    const r = Math.min(size * 0.32, 3);
+    const sw = Math.max(1.1, size * 0.22);
+    crayonRect(ctx, x + 0.4, y + 0.4, size - 0.8, size - 0.8, r, color, { strokeW: sw, j: 0.3 });
     // つや（ハイライト）
     ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.3;
     ctx.fillStyle = COLORS.white;
     ctx.beginPath();
     ctx.ellipse(x + size * 0.38, y + size * 0.32, size * 0.22, size * 0.13, 0, 0, Math.PI * 2);
@@ -259,9 +262,12 @@ export class Renderer {
     }
     const w = car.w, h = car.h;
     const body = car.color;
+    const v = car.variant;
+    const isBus = !!(v && v.long);
 
-    // タイヤ2つ
-    for (const wx of [-w * 0.28, w * 0.28]) {
+    // タイヤ（バスは3つ）
+    const wheelXs = isBus ? [-w * 0.32, 0, w * 0.32] : [-w * 0.28, w * 0.28];
+    for (const wx of wheelXs) {
       ctx.save();
       ctx.translate(wx, h * 0.42);
       crayonCircle(ctx, 0, 0, 9, COLORS.tire, { strokeW: 2.4 });
@@ -276,22 +282,108 @@ export class Renderer {
       ctx.restore();
     }
 
-    // 運転席のふくらみ（キャビン）
-    crayonRect(ctx, -w * 0.18, -h * 0.62, w * 0.5, h * 0.55, CFG.RADIUS, body);
-    // 窓
-    crayonRect(ctx, -w * 0.10, -h * 0.50, w * 0.34, h * 0.34, Math.max(3, CFG.RADIUS - 3), COLORS.window, { strokeW: 2 });
-
-    // ボディ
-    crayonRect(ctx, -w * 0.5, -h * 0.18, w, h * 0.62, CFG.RADIUS, body);
+    if (isBus) {
+      // バス：背の高い箱型ボディ＋窓いっぱい
+      crayonRect(ctx, -w * 0.5, -h * 0.7, w, h * 1.14, CFG.RADIUS, body);
+      const n = v.windows || 3;
+      const gap = w * 0.86 / n;
+      for (let i = 0; i < n; i++) {
+        crayonRect(ctx, -w * 0.43 + i * gap, -h * 0.52, gap - 5, h * 0.4,
+          Math.max(3, CFG.RADIUS - 3), COLORS.window, { strokeW: 2 });
+      }
+    } else {
+      // 運転席のふくらみ（キャビン）＋ 窓
+      crayonRect(ctx, -w * 0.18, -h * 0.62, w * 0.5, h * 0.55, CFG.RADIUS, body);
+      crayonRect(ctx, -w * 0.10, -h * 0.50, w * 0.34, h * 0.34,
+        Math.max(3, CFG.RADIUS - 3), COLORS.window, { strokeW: 2 });
+      // ボディ
+      crayonRect(ctx, -w * 0.5, -h * 0.18, w, h * 0.62, CFG.RADIUS, body);
+    }
 
     if (car.type === TYPE.NORMAL) {
-      this._face(ctx, w * 0.06, h * 0.06);
+      this._vehicleParts(ctx, car);
+      this._face(ctx, isBus ? -w * 0.02 : w * 0.06, isBus ? h * 0.18 : h * 0.06);
     } else {
       this._factoryParts(ctx, car);
       this._face(ctx, -w * 0.04, h * 0.06);
     }
 
     ctx.restore();
+  }
+
+  // 車種ごとの飾り（救急車・消防車・パトカー・タクシー・バス）
+  _vehicleParts(ctx, car) {
+    const w = car.w, h = car.h;
+    const v = car.variant;
+    if (!v) return;
+
+    // 二色（パトカーの下半分）
+    if (v.lower) {
+      ctx.save();
+      crayonRect(ctx, -w * 0.5, h * 0.04, w, h * 0.4, CFG.RADIUS, v.lower, { outline: false });
+      ctx.restore();
+    }
+    // 横帯（救急車・消防車）
+    if (v.stripe) {
+      ctx.save();
+      ctx.fillStyle = v.stripe;
+      ctx.globalAlpha = 0.95;
+      ctx.fillRect(-w * 0.5, h * 0.02, w, 6);
+      ctx.restore();
+    }
+    // 赤十字（救急車）
+    if (v.cross) {
+      ctx.save();
+      ctx.fillStyle = '#e2574f';
+      const s = 7, cx = -w * 0.24, cy = h * 0.16;
+      ctx.fillRect(cx - s / 2, cy - 2, s, 4);
+      ctx.fillRect(cx - 2, cy - s / 2, 4, s);
+      ctx.restore();
+    }
+    // チェッカー（タクシー）
+    if (v.checker) {
+      ctx.save();
+      ctx.fillStyle = COLORS.ink;
+      const cs = 5;
+      for (let i = 0; i < Math.floor(w / cs); i++) {
+        if (i % 2 === 0) ctx.fillRect(-w * 0.5 + i * cs, h * 0.06, cs, cs);
+      }
+      ctx.restore();
+    }
+    // 屋根サイン（タクシー）
+    if (v.sign) {
+      crayonRect(ctx, -w * 0.1, -h * 0.86, w * 0.22, h * 0.2, 3, '#fff3c4', { strokeW: 2 });
+    }
+    // はしご（消防車）
+    if (v.ladder) {
+      ctx.save();
+      ctx.strokeStyle = '#e7e1d0';
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.32, -h * 0.66); ctx.lineTo(w * 0.18, -h * 0.66);
+      ctx.moveTo(-w * 0.32, -h * 0.56); ctx.lineTo(w * 0.18, -h * 0.56);
+      ctx.stroke();
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i <= 6; i++) {
+        const lx = -w * 0.32 + i * (w * 0.5 / 6);
+        ctx.beginPath(); ctx.moveTo(lx, -h * 0.66); ctx.lineTo(lx, -h * 0.56); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // サイレン（点滅）
+    if (v.siren) {
+      const blink = Math.floor(car.wheelSpin * 2) % 2;
+      const lx = -w * 0.1, ly = -h * (v.long ? 0.86 : 0.74);
+      crayonRect(ctx, lx, ly, w * 0.2, 6, 2, '#3a3142', { strokeW: 1.6, j: 0.2 });
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = v.siren[blink];
+      ctx.beginPath(); ctx.arc(lx + w * 0.05, ly + 3, 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = v.siren[1 - blink];
+      ctx.beginPath(); ctx.arc(lx + w * 0.15, ly + 3, 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
   }
 
   _factoryParts(ctx, car) {

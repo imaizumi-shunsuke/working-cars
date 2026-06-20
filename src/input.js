@@ -43,32 +43,45 @@ export class InputManager {
     this.canvas.setPointerCapture?.(e.pointerId);
     this.stroke.clear();
     this.trail.length = 0;
-    this._paint(p);
+    this.last = p;
+    this._stamp(p.x, p.y);
+    this._addTrail(p);
   }
 
   _move(e) {
     if (!this.drawing) return;
-    // 連続性のため、前回点との間を補間して塗る
     const p = this._pos(e);
-    this._paint(p);
+    // 連続性のため、前回点との間を補間して塗る（細いブラシでも線が途切れない）
+    const a = this.last || p;
+    const dx = p.x - a.x, dy = p.y - a.y;
+    const dist = Math.hypot(dx, dy);
+    const stepLen = this.grid.cell * 0.6;
+    const n = Math.max(1, Math.ceil(dist / stepLen));
+    for (let i = 1; i <= n; i++) {
+      this._stamp(a.x + dx * (i / n), a.y + dy * (i / n));
+    }
+    this.last = p;
+    this._addTrail(p);
   }
 
   _up() {
     if (!this.drawing) return;
     this.drawing = false;
+    this.last = null;
     this.grid.commitStroke(this.stroke);
     this.stroke = new Set();
     this.trail.length = 0;
   }
 
-  _paint(p) {
+  _stamp(px, py) {
     const cell = this.grid.cell;
-    const cc = Math.floor(p.x / cell);
-    const cr = Math.floor(p.y / cell);
+    const cc = Math.floor(px / cell);
+    const cr = Math.floor(py / cell);
     const R = CFG.BRUSH_RADIUS;
-    for (let dc = -R; dc <= R; dc++) {
-      for (let dr = -R; dr <= R; dr++) {
-        if (dc * dc + dr * dr > R * R + 1) continue; // 円形ブラシ
+    const ri = Math.ceil(R);
+    for (let dc = -ri; dc <= ri; dc++) {
+      for (let dr = -ri; dr <= ri; dr++) {
+        if (dc * dc + dr * dr > R * R + 0.25) continue; // 円形ブラシ
         const c = cc + dc, r = cr + dr;
         if (!this.grid.inCols(c)) continue;
         if (r < 0 || r >= this.grid.groundRow) continue;
@@ -76,6 +89,9 @@ export class InputManager {
         this.stroke.add(c + ',' + r);
       }
     }
+  }
+
+  _addTrail(p) {
     this.trail.push({ x: p.x, y: p.y, t: performance.now() });
     if (this.trail.length > 24) this.trail.shift();
   }
