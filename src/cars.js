@@ -40,7 +40,6 @@ export class Car {
     this.state = 'run';      // 'run' | 'goal'
     this.stuck = 0;
     this.shake = 0;
-    this.digging = false;
     this.wheelSpin = 0;
     this.goalT = 0;
     this.dead = false;
@@ -84,55 +83,34 @@ export function updateCar(car, grid, step, width) {
   const back = car.x - car.w * 0.45;
   const run = front - back;
   const feetY = car.y + car.h * 0.5;
-  const feetRow = Math.floor(feetY / cell);
-  const headRow = Math.floor((car.y - car.h * 0.5) / cell);
-  const frontCol = Math.floor(front / cell);
 
-  // --- トンネル車：掘削中（前進しているので詰まりはリセット）---
-  if (car.digging) {
-    car.stuck = 0;
-    const rowTop = Math.floor((car.y - car.h * 0.5 - cell) / cell); // 天井に少し余裕
-    const rowBot = Math.floor((car.y + car.h * 0.5) / cell);
-    fx.dust.push(...grid.digBand(car.x + car.w * 0.5, rowTop, rowBot));
-    car.x += speed * 0.6;
-    if (!grid.bandBlocked(car.x + car.w * 0.5, rowTop, rowBot)) car.digging = false;
-    return _checkGoal(car, fx, width);
-  }
+  // ブロックは重力で隙間なく地面に積もる（宙に浮かない）ので、
+  // 各列の山の上面=surfaceTopY を見るだけで地面追従できる。
+  const frontTop = grid.surfaceTopY(front);
+  const backTop = grid.surfaceTopY(back);
+  const surface = Math.min(frontTop, backTop); // 高い方の山に乗る
+  const stepUp = feetY - frontTop;             // 前方の山が足元より何px高いか
 
-  // --- 体の高さ(帯)の中に前方の障害があるか ---
-  const obsRow = grid.topSolidInBand(frontCol, headRow, feetRow);
-  let floorTop;
-  let blocked = false;
-
-  if (obsRow >= 0) {
-    const stepUp = feetY - obsRow * cell; // 足元より何px高いか
-    if (stepUp <= maxStep) {
-      floorTop = obsRow * cell;           // ゆるい段差 → 乗り越える
-    } else {
-      blocked = true;                     // 急な壁 → 詰まり/特殊行動
-    }
-  } else {
-    // 帯に障害なし（平地・下り・トンネル内）→ 足元の下の足場へ
-    floorTop = grid.floorBelow(frontCol, feetRow) * cell;
-  }
-
-  if (blocked) {
+  // --- 急な壁：詰まり / 特殊行動 ---
+  if (stepUp > maxStep) {
     if (car.type === TYPE.GRINDER) {
-      // 「届く範囲だけ」削る：乗り越えられる高さまで段差上部を削る。
-      // targetTopRow より上(=頭に近い側)のセルだけ消すので、削った後に
-      // ちょうど乗り越えられる段差になる（頭上の天井や高所は触らない）。
-      const targetTopRow = Math.ceil((feetY - maxStep) / cell);
-      const dust = grid.grindFront(front, headRow, targetTopRow);
+      // グラインダー＝上を削る：山の天辺を少しずつ削って低くする
+      const dust = grid.grindTop(front, CFG.GRIND_RATE);
       fx.dust.push(...dust);
       fx.sparks.push(...dust);
-      // 削れていれば前進中とみなし詰まりリセット。削れない壁なら諦める
       if (dust.length) car.stuck = 0; else car.stuck += step;
       car.shake = Math.sin(car.stuck * 0.8) * 1.0;
       if (car.stuck > CFG.GIVE_UP_STUCK) { car.state = 'goal'; fx.poof = true; }
       return fx;
     }
     if (car.type === TYPE.TUNNEL) {
-      car.digging = true;
+      // ドリル＝下を掘る：山の根元を掘ると上が崩れ落ちて全体が沈む
+      const dust = grid.drillBottom(front, CFG.GRIND_RATE);
+      fx.dust.push(...dust);
+      if (dust.length) car.stuck = 0; else car.stuck += step;
+      car.x += speed * 0.25;                  // ぐいぐい押し込む感じ
+      car.shake = Math.sin(car.stuck * 0.7) * 0.8;
+      if (car.stuck > CFG.GIVE_UP_STUCK) { car.state = 'goal'; fx.poof = true; }
       return fx;
     }
     // 普通車：止まってぷるぷる。長く詰まったら諦めてポンッと消える
@@ -142,17 +120,15 @@ export function updateCar(car, grid, step, width) {
     return fx;
   }
 
-  // --- 通常走行 ---
+  // --- 通常走行：山の上面に沿って進む ---
   car.stuck = 0;
   car.shake = 0;
   car.x += speed;
 
-  const targetY = floorTop - car.h * 0.5;
+  const targetY = surface - car.h * 0.5;
   car.y += (targetY - car.y) * Math.min(1, 0.2 * step);
 
-  // 傾き：前後の足場の高さ差から
-  const backTop = grid.floorBelow(Math.floor(back / cell), feetRow) * cell;
-  const targetAngle = Math.atan2(floorTop - backTop, run);
+  const targetAngle = Math.atan2(frontTop - backTop, run); // 上り坂で前が上がる
   car.angle += (targetAngle - car.angle) * Math.min(1, 0.2 * step);
 
   return _checkGoal(car, fx, width);

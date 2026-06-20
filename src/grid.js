@@ -66,25 +66,31 @@ export class Grid {
     return this.topRow[c] * this.cell;
   }
 
-  // 帯 [rowTop..rowBot] の中で一番上にある固体の行を返す（なければ -1）。
-  // 車の「体の高さ」の範囲だけを見るのに使う（頭上のセル＝天井は無視できる）。
-  topSolidInBand(col, rowTop, rowBot) {
-    if (!this.inCols(col)) return -1; // 画面外は障害なし（左からスポーンして入ってくる）
-    const start = Math.max(0, rowTop);
-    for (let r = start; r <= rowBot; r++) {
-      if (r >= this.groundRow) return r;                  // 地面
-      if (this.staticCells.has(this.idx(col, r))) return r;
+  // --- 列ごとの重力（落として隙間を埋める / ブロックを宙に浮かせない）---
+  // 列 c の固体セルを、縦の順序と色を保ったまま地面側へ詰める。
+  // セルを消したあとに呼ぶと、上のセルが落ちてくる。
+  settleColumn(c) {
+    if (!this.inCols(c)) return;
+    const colors = [];
+    for (let r = 0; r < this.groundRow; r++) {
+      const k = this.idx(c, r);
+      const col = this.staticCells.get(k);
+      if (col !== undefined) {
+        colors.push(col);
+        this.staticCells.delete(k);
+      }
     }
-    return -1;
+    let r = this.groundRow - 1;
+    for (let i = colors.length - 1; i >= 0; i--, r--) {
+      this.staticCells.set(this.idx(c, r), colors[i]);
+    }
+    this.topRow[c] = this.groundRow - colors.length;
+    this.cacheDirty = true;
   }
 
-  // fromRow から下方向で最初の固体行（=足場の上面の行）を返す。
-  floorBelow(col, fromRow) {
-    if (!this.inCols(col)) return this.groundRow;
-    for (let r = Math.max(0, fromRow); r < this.groundRow; r++) {
-      if (this.staticCells.has(this.idx(col, r))) return r;
-    }
-    return this.groundRow;
+  // セルを消すだけ（topRow 更新は settleColumn にまかせる）
+  _del(c, r) {
+    if (this.staticCells.delete(this.idx(c, r))) this.cacheDirty = true;
   }
 
   // --- 確定セルを置く / 消す（内部用）---
@@ -159,60 +165,55 @@ export class Grid {
   }
 
   _freeze(cl) {
-    for (const it of cl.items) this._setStatic(it.c, it.r, it.color);
+    const cols = new Set();
+    for (const it of cl.items) {
+      this._setStatic(it.c, it.r, it.color);
+      cols.add(it.c);
+    }
+    // 着地した列を重力で詰める（宙に浮いたセルを残さない）
+    for (const c of cols) this.settleColumn(c);
   }
 
-  // --- 削る（5.4 / グラインダー車）---------------------------------
-  // 「車の届く範囲だけ」削る：頭上の行(headRow)から、乗り越えられる高さ
-  // (targetTopRow)までの段差上部だけを GRIND_RATE 個消す。これより上の
-  // セル（天井・高所）は触らないので不自然に上方が消えない。
-  // 消した位置の配列（px中心）を返す → 砂ぼこり用。
-  grindFront(frontXpx, headRow, targetTopRow) {
+  // --- 削る（グラインダー車＝「上を削る」のが得意）-----------------
+  // 前方の柱の一番上のセルを count 個けずる。けずった後は重力で詰まる
+  // ので、壁は上から少しずつ低くなる。消した位置の配列を返す（砂ぼこり）。
+  grindTop(frontXpx, count) {
     const dust = [];
-    let removed = 0;
     const cols = [Math.floor(frontXpx / this.cell), Math.floor(frontXpx / this.cell) + 1];
     for (const c of cols) {
       if (!this.inCols(c)) continue;
-      let r = Math.max(0, headRow);
-      while (r < targetTopRow && r < this.groundRow && removed < CFG.GRIND_RATE) {
+      let removed = 0;
+      for (let r = this.topRow[c]; r < this.groundRow && removed < count; r++) {
         if (this.staticCells.has(this.idx(c, r))) {
-          this._clear(c, r);
+          this._del(c, r);
           dust.push({ x: c * this.cell + this.cell / 2, y: r * this.cell + this.cell / 2 });
           removed++;
         }
-        r++;
       }
+      this.settleColumn(c);
     }
     return dust;
   }
 
-  // --- 掘る（5.4 / トンネル車）-------------------------------------
-  // 車高ぶんの帯(rowTop..rowBot)を正面方向に消す。上の STATIC は残す（=天井）。
-  // 消した位置の配列を返す。
-  digBand(frontXpx, rowTop, rowBot) {
+  // --- 掘る（ドリル車＝「下を掘る」のが得意）-----------------------
+  // 前方の柱の一番下のセルを count 個ほり取る。上のセルは重力で落ちて
+  // くる（崩れ落ちる）ので壁全体が沈んでいく。消した位置の配列を返す。
+  drillBottom(frontXpx, count) {
     const dust = [];
     const cols = [Math.floor(frontXpx / this.cell), Math.floor(frontXpx / this.cell) + 1];
     for (const c of cols) {
       if (!this.inCols(c)) continue;
-      for (let r = rowTop; r <= rowBot; r++) {
-        if (r < 0 || r >= this.groundRow) continue;
+      let removed = 0;
+      for (let r = this.groundRow - 1; r >= 0 && removed < count; r--) {
         if (this.staticCells.has(this.idx(c, r))) {
-          this._clear(c, r);
+          this._del(c, r);
           dust.push({ x: c * this.cell + this.cell / 2, y: r * this.cell + this.cell / 2 });
+          removed++;
         }
       }
+      this.settleColumn(c);
     }
     return dust;
-  }
-
-  // 帯の前方にまだ固体があるか（掘り続けるべきか判定）
-  bandBlocked(frontXpx, rowTop, rowBot) {
-    const c = Math.floor(frontXpx / this.cell);
-    if (!this.inCols(c)) return false;
-    for (let r = rowTop; r <= rowBot; r++) {
-      if (r >= 0 && r < this.groundRow && this.staticCells.has(this.idx(c, r))) return true;
-    }
-    return false;
   }
 
   // --- 全消去（2.4 / 障害物だけ消す。地面・車は残す）---
